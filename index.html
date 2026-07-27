@@ -194,6 +194,17 @@
       </span>
       <input class="search-input" id="search-input" type="text" placeholder="搜索表达、含义或标签…" />
     </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <button class="btn-secondary" onclick="exportData()" style="flex:1;font-size:13px;padding:10px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        导出备份
+      </button>
+      <button class="btn-secondary" onclick="document.getElementById('import-file').click()" style="flex:1;font-size:13px;padding:10px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        导入恢复
+      </button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)" />
+    </div>
     <div id="library-list"></div>
   </div>
 
@@ -448,6 +459,43 @@ function renderLibrary() {
 function deleteExpr(id) {
   expressions = expressions.filter(e=>e.id!==id);
   saveData(); renderAll(); renderLibrary();
+}
+
+// ====== 数据导入导出 ======
+function exportData() {
+  const blob = new Blob([JSON.stringify(expressions, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wordspark-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('格式错误');
+      const merged = [...data, ...expressions];
+      // 按 id 去重
+      const seen = new Set();
+      expressions = merged.filter(item => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+      saveData(); renderAll(); renderLibrary();
+      alert(`导入成功！共 ${data.length} 条记录，合并后共 ${expressions.length} 条。`);
+    } catch(err) {
+      alert('导入失败：文件格式不正确，请选择 WordSpark 备份文件 (.json)');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ====== REVIEW SCREEN ======
