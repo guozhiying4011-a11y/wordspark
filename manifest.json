@@ -1,0 +1,24 @@
+{
+  "name": "WordSpark · 英语表达学习",
+  "short_name": "WordSpark",
+  "description": "英语表达学习应用，支持闪卡复习和 AI 标签推荐",
+  "start_url": "/wordspark/",
+  "display": "standalone",
+  "background_color": "#f4fbf6",
+  "theme_color": "#2d7a4a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
