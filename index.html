@@ -81,6 +81,22 @@
   .card-meta { margin-left: auto; font-size: 11px; color: #9aaa92; }
   .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
   .delete-btn { background: none; border: none; cursor: pointer; color: #c5ceb8; padding: 4px; }
+  .edit-btn { background: none; border: none; cursor: pointer; color: #c5ceb8; padding: 4px; }
+  .edit-btn:hover, .delete-btn:hover { color: #7a936a; }
+  
+  /* Edit mode */
+  .card.editing .card-expr, .card.editing .card-meaning, .card.editing .card-example, .card.editing .card-footer { display: none; }
+  .card.editing .card-edit-area { display: block; }
+  .card-edit-area { display: none; }
+  .card-edit-area .field { margin-bottom: 10px; }
+  .card-edit-area .field label { font-size: 11px; }
+  .card-edit-area .field input, .card-edit-area .field textarea { font-size: 13px; padding: 8px 10px; }
+  .edit-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .edit-actions button { flex: 1; padding: 8px; border-radius: 10px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .edit-save-btn { background: linear-gradient(135deg, #7a936a, #5e7550); color: #fff; }
+  .edit-cancel-btn { background: #dce2cc; color: #5e7550; }
+  .edit-edit-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+  .edit-edit-tags .tag-chip.removable { font-size: 11px; padding: 2px 8px; }
 
   /* Review */
   .progress-bar { height: 5px; background: #e8ecd8; border-radius: 4px; margin-bottom: 24px; overflow: hidden; }
@@ -148,7 +164,7 @@
     </div>
     <div class="field">
       <label>中文含义 *</label>
-      <input id="inp-meaning" type="text" placeholder="e.g. 打破沉默，缓和气氛" />
+      <textarea id="inp-meaning" rows="2" placeholder="e.g. 打破沉默，缓和气氛"></textarea>
     </div>
     <div class="field">
       <label>例句（选填）</label>
@@ -439,16 +455,21 @@ function renderLibrary() {
   const list = document.getElementById("library-list");
   if (!filtered.length) { list.innerHTML = `<div class="empty-list">还没有表达，去添加一个吧！</div>`; return; }
   list.innerHTML = filtered.map(e => `
-    <div class="card">
+    <div class="card" id="card-${e.id}">
       <div class="card-header">
-        <span class="card-expr">${e.expression}</span>
-        <button class="delete-btn" onclick="deleteExpr('${e.id}')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-        </button>
+        <span class="card-expr" id="card-expr-${e.id}">${e.expression}</span>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="edit-btn" onclick="editExpr('${e.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          <button class="delete-btn" onclick="deleteExpr('${e.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        </div>
       </div>
-      <div class="card-meaning">${e.meaning}</div>
-      ${e.example ? `<div class="card-example">${e.example}</div>` : ""}
-      <div class="card-footer">
+      <div class="card-meaning" id="card-meaning-${e.id}">${e.meaning}</div>
+      ${e.example ? `<div class="card-example" id="card-example-${e.id}">${e.example}</div>` : `<div class="card-example" id="card-example-${e.id}" style="display:none"></div>`}
+      <div class="card-footer" id="card-footer-${e.id}">
         ${(e.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join("")}
         <span class="card-meta">${daysAgo(e.createdAt)===0?"今天":daysAgo(e.createdAt)+"天前"} · Lv.${e.level??0}</span>
       </div>
@@ -459,6 +480,92 @@ function renderLibrary() {
 function deleteExpr(id) {
   expressions = expressions.filter(e=>e.id!==id);
   saveData(); renderAll(); renderLibrary();
+}
+
+// ====== 编辑表达 ======
+let editState = { id:null, tags:[] };
+
+function editExpr(id) {
+  const expr = expressions.find(e=>e.id===id);
+  if (!expr) return;
+  editState = { id, tags: [...(expr.tags||[])] };
+  const card = document.getElementById('card-'+id);
+  card.classList.add('editing');
+  
+  const tagChips = editState.tags.map(t => 
+    `<span class="tag-chip removable" onclick="editRemoveTag('${t.replace(/'/g,"\\'")}')">${t} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></span>`
+  ).join("");
+  
+  card.innerHTML = `
+    <div class="card-edit-area">
+      <div class="field">
+        <label>英语表达</label>
+        <input id="edit-expr-${id}" value="${expr.expression.replace(/"/g,'&quot;')}" />
+      </div>
+      <div class="field">
+        <label>中文含义</label>
+        <textarea id="edit-meaning-${id}" rows="2">${expr.meaning}</textarea>
+      </div>
+      <div class="field">
+        <label>例句</label>
+        <textarea id="edit-example-${id}" rows="2">${expr.example||''}</textarea>
+      </div>
+      <div class="field">
+        <label>标签</label>
+        <div class="edit-edit-tags" id="edit-tags-${id}">${tagChips||''}</div>
+        <div style="display:flex;gap:6px">
+          <input class="custom-tag-input" id="edit-tag-input-${id}" placeholder="添加标签" style="font-size:12px;padding:7px 10px" />
+          <button class="add-tag-btn" onclick="editAddTag('${id}')" style="font-size:14px;padding:7px 12px">+</button>
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button class="edit-cancel-btn" onclick="cancelEdit('${id}')">取消</button>
+        <button class="edit-save-btn" onclick="saveEdit('${id}')">保存修改</button>
+      </div>
+    </div>
+  `;
+  
+  // 回车添加标签
+  setTimeout(() => {
+    const inp = document.getElementById('edit-tag-input-'+id);
+    if (inp) inp.addEventListener('keydown', e => { if(e.key==='Enter') editAddTag(id); });
+  }, 100);
+}
+
+function editAddTag(id) {
+  const inp = document.getElementById('edit-tag-input-'+id);
+  const val = inp.value.trim();
+  if (val && !editState.tags.includes(val)) {
+    editState.tags.push(val);
+    renderEditTags(id);
+  }
+  inp.value = '';
+}
+
+function editRemoveTag(tag) {
+  editState.tags = editState.tags.filter(t=>t!==tag);
+  renderEditTags(editState.id);
+}
+
+function renderEditTags(id) {
+  const container = document.getElementById('edit-tags-'+id);
+  if (!container) return;
+  container.innerHTML = editState.tags.map(t =>
+    `<span class="tag-chip removable" onclick="editRemoveTag('${t.replace(/'/g,"\\'")}')">${t} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></span>`
+  ).join("");
+}
+
+function saveEdit(id) {
+  const expr = document.getElementById('edit-expr-'+id).value.trim();
+  const meaning = document.getElementById('edit-meaning-'+id).value.trim();
+  if (!expr || !meaning) return;
+  expressions = expressions.map(e => e.id===id ? {...e, expression:expr, meaning, example:document.getElementById('edit-example-'+id).value.trim(), tags:[...editState.tags]} : e);
+  saveData(); renderAll(); renderLibrary();
+}
+
+function cancelEdit(id) {
+  editState = { id:null, tags:[] };
+  renderLibrary();
 }
 
 // ====== 数据导入导出 ======
