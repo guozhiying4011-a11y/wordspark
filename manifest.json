@@ -4,8 +4,8 @@
   "description": "英语表达学习应用，支持闪卡复习和 AI 标签推荐",
   "start_url": "/wordspark/",
   "display": "standalone",
-  "background_color": "#f6f8ef",
-  "theme_color": "#7a936a",
+  "background_color": "#FAF3E9",
+  "theme_color": "#5C614D",
   "orientation": "portrait",
   "icons": [
     {
