@@ -76,7 +76,7 @@
   .card { background: #fff; border-radius: 16px; padding: 16px 18px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1.5px solid #FAF3E9; margin-bottom: 12px; }
   .card-expr { font-size: 17px; font-weight: 800; color: #4A4A42; font-family: 'Playfair Display', Georgia, serif; flex: 1; }
   .card-meaning { font-size: 14px; color: #6B6B5F; margin: 6px 0 4px; font-weight: 600; }
-  .card-example { font-size: 12px; color: #8A8A7C; font-style: italic; margin-bottom: 8px; }
+  .card-example { font-size: 12px; color: #8A8A7C; font-style: italic; margin-bottom: 8px; white-space: pre-wrap; word-break: break-word; }
   .card-footer { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .card-meta { margin-left: auto; font-size: 11px; color: #9A9A8C; }
   .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
@@ -116,7 +116,7 @@
   .card-back { margin-top: 16px; border-top: 1.5px solid #E5D9C8; padding-top: 16px; width: 100%; animation: fadeIn .3s; }
   .card-back-answer { font-size: 18px; font-weight: 700; color: #5C614D; }
   .card-back-answer.en { font-size: 22px; font-family: 'Playfair Display', Georgia, serif; }
-  .card-back-example { font-size: 13px; color: #8A8A7C; font-style: italic; margin-top: 10px; }
+  .card-back-example { font-size: 13px; color: #8A8A7C; font-style: italic; margin-top: 10px; white-space: pre-wrap; word-break: break-word; }
 
   .review-btns { display: flex; gap: 12px; margin-top: 20px; animation: fadeIn .3s; }
   .btn-unknown { flex: 1; padding: 14px; border-radius: 14px; border: 2px solid #D4C4B0; background: #FAF3E9; color: #c0392b; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; }
@@ -834,7 +834,7 @@ function renderOutput() {
       <div class="card-front" style="font-size:22px">${expr.expression}</div>
       <div style="margin-top:8px;color:#9A9A8C;font-size:13px">${expr.meaning}</div>
       <div style="margin-top:4px">${(expr.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join("")}</div>
-      ${expr.example ? `<div class="card-hint">例句参考：${expr.example}</div>` : ''}
+      ${expr.example ? `<div class="card-hint">例句参考：<span style="white-space:pre-wrap;display:inline-block">${expr.example}</span></div>` : ''}
     </div>
     <div style="margin-top:20px">
       <div class="field">
