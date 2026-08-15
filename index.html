@@ -73,11 +73,13 @@
   .search-input { width: 100%; padding: 11px 14px 11px 38px; border-radius: 12px; border: 2px solid #E5D9C8; font-size: 14px; background: #F5EFE4; color: #4A4A42; }
 
   /* Library tabs */
-  .lib-tabs { display: flex; gap: 6px; margin-bottom: 10px; background: #F5EFE4; border-radius: 12px; padding: 4px; }
-  .lib-tab-btn { flex: 1; padding: 8px 6px; border: none; border-radius: 10px; background: transparent; color: #7A7A6E; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s; font-family: inherit; }
-  .lib-tab-btn.active { background: #fff; color: #5C614D; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-  .lib-tab-btn .tab-count { display:inline-block; min-width:18px; padding:1px 5px; margin-left:4px; border-radius:99px; background:#EADBC8; color:#5C614D; font-size:10px; text-align:center; }
+  .lib-tabs { display: flex; margin-bottom: 12px; border-bottom: 1px solid #E5D9C8; position: relative; background: transparent; padding: 0; gap: 0; border-radius: 0; }
+  .lib-tab-btn { flex: 1; padding: 12px 4px; border: none; border-radius: 0; background: transparent; color: #9A9A8C; font-size: 14px; font-weight: 500; cursor: pointer; transition: color .2s; font-family: inherit; position: relative; }
+  .lib-tab-btn.active { color: #5C614D; font-weight: 700; }
+  .lib-tab-btn.active::after { content: ""; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); width: 24px; height: 3px; border-radius: 2px; background: #5C614D; }
+  .lib-tab-btn .tab-count { display:inline-block; min-width:18px; padding:1px 5px; margin-left:4px; border-radius:99px; background:#EADBC8; color:#7A7A6E; font-size:10px; text-align:center; font-weight:600; }
   .lib-tab-btn.active .tab-count { background:#5C614D; color:#fff; }
+  .lib-sub-row { font-size: 12px; color: #7A7A6E; margin-bottom: 12px; padding: 0 2px; }
   .lib-graduated-toggle { display:none; align-items:center; gap:10px; padding:10px 14px; margin-bottom:12px; background:#F5EFE4; border-radius:12px; font-size:12px; color:#6B6B5F; font-weight:600; }
   .lib-graduated-toggle.show { display:flex; }
   .lib-graduated-toggle .toggle-switch { margin-left:auto; width:40px; height:22px; border-radius:99px; background:#D4C4B0; position:relative; cursor:pointer; transition:background .2s; border:none; padding:0; }
@@ -213,18 +215,18 @@
 
   <!-- LIBRARY SCREEN -->
   <div class="screen" id="screen-library">
-    <div style="padding-top:32px;padding-bottom:16px">
+    <div style="padding-top:32px;padding-bottom:8px">
       <div class="screen-title">我的词库</div>
-      <div class="screen-sub" id="lib-sub">0 expressions collected</div>
     </div>
-    <div class="search-wrap">
+    <div class="lib-tabs" id="lib-tabs"></div>
+    <div class="search-wrap" style="margin-bottom:12px">
       <span class="icon-pos">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
       </span>
       <input class="search-input" id="search-input" type="text" placeholder="搜索表达、含义或标签…" />
     </div>
-    <div class="lib-tabs" id="lib-tabs"></div>
     <div class="lib-graduated-toggle" id="lib-graduated-toggle"></div>
+    <div class="lib-sub-row" id="lib-sub"></div>
     <div style="display:flex;gap:10px;margin-bottom:16px">
       <button class="btn-secondary" onclick="exportData()" style="flex:1;font-size:13px;padding:10px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
