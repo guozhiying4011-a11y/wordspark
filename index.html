@@ -293,11 +293,18 @@ function loadData() {
 }
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(expressions)); }
 function daysAgo(d) { return Math.floor((Date.now()-new Date(d).getTime())/86400000); }
-function isDue(e) { const iv=[1,3,7,14,30]; return (e.outputCount||0) < 3 && daysAgo(e.lastReviewed??e.createdAt)>=iv[Math.min(e.level??0,4)]; }
+function isDue(e) { const iv=[1,3,7,14,30]; const today=new Date().toDateString(); if (e.forgotToday===today) return true; return (e.outputCount||0) < 3 && daysAgo(e.lastReviewed??e.createdAt)>=iv[Math.min(e.level??0,4)]; }
 
 // ---- Init ----
 expressions = loadData();
 (function initTab(){
+  const today = new Date().toDateString();
+  let dirty = false;
+  expressions = expressions.map(e => {
+    if (e.forgotToday && e.forgotToday !== today) { dirty = true; return {...e, forgotToday: undefined}; }
+    return e;
+  });
+  if (dirty) saveData();
   const due = expressions.filter(isDue);
   currentTab = due.length ? "review" : "add";
   renderAll();
@@ -738,11 +745,13 @@ function revealCard() {
 function nextCard(knew) {
   const { due, idx } = reviewState;
   const cur = due[idx];
-  // update expression
-  expressions = expressions.map(e => e.id!==cur.id ? e : {
-    ...e, lastReviewed:new Date().toISOString(),
-    level: knew ? Math.min((e.level??0)+1,4) : 0
-  });
+  const updated = {
+    ...cur,
+    lastReviewed: knew ? new Date().toISOString() : cur.lastReviewed,
+    level: knew ? Math.min((cur.level??0)+1,4) : 0,
+    forgotToday: knew ? undefined : new Date().toDateString()
+  };
+  expressions = expressions.map(e => e.id===cur.id ? updated : e);
   saveData(); renderAll();
 
   // flip animation
@@ -750,8 +759,16 @@ function nextCard(knew) {
   if (card) { card.classList.add("flipping"); }
   setTimeout(() => {
     reviewState.revealed = false;
-    if (idx+1 >= due.length) reviewState.done = true;
-    else reviewState.idx = idx+1;
+    let newDue = due.map(x => x.id===cur.id ? updated : x);
+    if (knew) {
+      newDue = newDue.filter(x => x.id !== cur.id);
+    } else {
+      newDue = newDue.filter(x => x.id !== cur.id);
+      newDue.push(updated);
+    }
+    reviewState.due = newDue;
+    if (newDue.length === 0) reviewState.done = true;
+    else reviewState.idx = 0;
     renderReview();
   }, 300);
 }
