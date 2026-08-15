@@ -72,6 +72,19 @@
   .search-wrap .icon-pos { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #7A7A6E; pointer-events: none; }
   .search-input { width: 100%; padding: 11px 14px 11px 38px; border-radius: 12px; border: 2px solid #E5D9C8; font-size: 14px; background: #F5EFE4; color: #4A4A42; }
 
+  /* Library tabs */
+  .lib-tabs { display: flex; gap: 6px; margin-bottom: 10px; background: #F5EFE4; border-radius: 12px; padding: 4px; }
+  .lib-tab-btn { flex: 1; padding: 8px 6px; border: none; border-radius: 10px; background: transparent; color: #7A7A6E; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s; font-family: inherit; }
+  .lib-tab-btn.active { background: #fff; color: #5C614D; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .lib-tab-btn .tab-count { display:inline-block; min-width:18px; padding:1px 5px; margin-left:4px; border-radius:99px; background:#EADBC8; color:#5C614D; font-size:10px; text-align:center; }
+  .lib-tab-btn.active .tab-count { background:#5C614D; color:#fff; }
+  .lib-graduated-toggle { display:none; align-items:center; gap:10px; padding:10px 14px; margin-bottom:12px; background:#F5EFE4; border-radius:12px; font-size:12px; color:#6B6B5F; font-weight:600; }
+  .lib-graduated-toggle.show { display:flex; }
+  .lib-graduated-toggle .toggle-switch { margin-left:auto; width:40px; height:22px; border-radius:99px; background:#D4C4B0; position:relative; cursor:pointer; transition:background .2s; border:none; padding:0; }
+  .lib-graduated-toggle .toggle-switch.on { background:#5C614D; }
+  .lib-graduated-toggle .toggle-switch::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s; }
+  .lib-graduated-toggle .toggle-switch.on::after { left:20px; }
+
   /* Card list */
   .card { background: #fff; border-radius: 16px; padding: 16px 18px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1.5px solid #FAF3E9; margin-bottom: 12px; }
   .card-expr { font-size: 17px; font-weight: 800; color: #4A4A42; font-family: 'Playfair Display', Georgia, serif; flex: 1; }
@@ -210,6 +223,8 @@
       </span>
       <input class="search-input" id="search-input" type="text" placeholder="搜索表达、含义或标签…" />
     </div>
+    <div class="lib-tabs" id="lib-tabs"></div>
+    <div class="lib-graduated-toggle" id="lib-graduated-toggle"></div>
     <div style="display:flex;gap:10px;margin-bottom:16px">
       <button class="btn-secondary" onclick="exportData()" style="flex:1;font-size:13px;padding:10px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -286,6 +301,7 @@ let reviewState = { due:[], idx:0, revealed:false, mode:"meaning", done:false };
 let addState = { tags:[], suggestions:[], loadingSuggestions:false };
 let debounceTimer = null;
 let savedFlash = false;
+let libraryFilter = "all";
 
 function loadData() {
   try { const d = JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]"); return d.length ? d : SAMPLE; }
@@ -293,7 +309,24 @@ function loadData() {
 }
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(expressions)); }
 function daysAgo(d) { return Math.floor((Date.now()-new Date(d).getTime())/86400000); }
-function isDue(e) { const iv=[1,3,7,14,30]; const today=new Date().toDateString(); if (e.forgotToday===today) return true; return (e.outputCount||0) < 3 && daysAgo(e.lastReviewed??e.createdAt)>=iv[Math.min(e.level??0,4)]; }
+function isDue(e) {
+  const iv=[1,3,7,14,30];
+  const today=new Date().toDateString();
+  if (e.forgotToday===today) return true;
+  const graduated = (e.outputCount||0) >= 3;
+  if (graduated && !getGraduatedInReview()) return false;
+  const notGraduatedDue = !graduated && daysAgo(e.lastReviewed??e.createdAt)>=iv[Math.min(e.level??0,4)];
+  const graduatedDue = graduated && daysAgo(e.lastReviewed??e.createdAt)>=30;
+  return notGraduatedDue || graduatedDue;
+}
+
+function getCategory(e) {
+  if ((e.outputCount||0) >= 3) return "graduated";
+  if ((e.level||0) === 0 && (e.outputCount||0) === 0) return "new";
+  return "learning";
+}
+function getGraduatedInReview() { return localStorage.getItem("ws-graduated-in-review") === "1"; }
+function setGraduatedInReview(v) { localStorage.setItem("ws-graduated-in-review", v ? "1" : "0"); }
 
 // ---- Init ----
 expressions = loadData();
@@ -315,6 +348,7 @@ expressions = loadData();
 function switchTab(tab) {
   currentTab = tab;
   activateTab(tab);
+  renderAll();
   if (tab === "review") initReview();
   if (tab === "library") renderLibrary();
   if (tab === "output") initOutput();
@@ -329,8 +363,10 @@ function activateTab(tab) {
 // ---- Header / badge update ----
 function renderAll() {
   const due = expressions.filter(isDue);
-  const graduated = expressions.filter(e=>(e.outputCount||0)>=3).length;
-  document.getElementById("header-sub").textContent = `${expressions.length} 个表达 · ${due.length > 0 ? due.length+" 待复习" : "全部已复习 ✓"} · ${graduated} 已毕业`;
+  const newCount = expressions.filter(e=>getCategory(e)==="new").length;
+  const learningCount = expressions.filter(e=>getCategory(e)==="learning").length;
+  const graduatedCount = expressions.filter(e=>getCategory(e)==="graduated").length;
+  document.getElementById("header-sub").textContent = `${expressions.length} 个表达 · ${due.length > 0 ? due.length+" 待复习" : "全部已复习 ✓"} · ${graduatedCount} 已毕业`;
   const badge = document.getElementById("review-badge");
   if (due.length > 0) { badge.textContent = due.length; badge.style.display = ""; }
   else { badge.style.display = "none"; }
@@ -341,6 +377,26 @@ function renderAll() {
   const needOutput = expressions.some(e=>(e.outputCount||0) < 3);
   if (!didOutput && needOutput && expressions.length>0) { ob.textContent = "1"; ob.style.display = ""; }
   else { ob.style.display = "none"; }
+  // 更新词库标签
+  const tabsEl = document.getElementById("lib-tabs");
+  if (tabsEl) {
+    tabsEl.innerHTML = `
+      <button class="lib-tab-btn ${libraryFilter==='all'?'active':''}" onclick="setLibFilter('all')">全部<span class="tab-count">${expressions.length}</span></button>
+      <button class="lib-tab-btn ${libraryFilter==='new'?'active':''}" onclick="setLibFilter('new')">未学习<span class="tab-count">${newCount}</span></button>
+      <button class="lib-tab-btn ${libraryFilter==='learning'?'active':''}" onclick="setLibFilter('learning')">学习中<span class="tab-count">${learningCount}</span></button>
+      <button class="lib-tab-btn ${libraryFilter==='graduated'?'active':''}" onclick="setLibFilter('graduated')">已毕业<span class="tab-count">${graduatedCount}</span></button>
+    `;
+  }
+  // 更新毕业复习开关可见性
+  const toggleEl = document.getElementById("lib-graduated-toggle");
+  if (toggleEl) {
+    if (graduatedCount > 0) {
+      toggleEl.classList.add("show");
+      toggleEl.innerHTML = `毕业单词加入复习<button class="toggle-switch ${getGraduatedInReview()?'on':''}" onclick="toggleGraduatedReview()"></button>`;
+    } else {
+      toggleEl.classList.remove("show");
+    }
+  }
 }
 
 // ====== ADD SCREEN ======
@@ -483,13 +539,24 @@ document.getElementById("search-input").addEventListener("input", renderLibrary)
 
 function renderLibrary() {
   const q = document.getElementById("search-input").value.toLowerCase();
-  const filtered = expressions.filter(e =>
-    e.expression.toLowerCase().includes(q) || e.meaning.includes(q) || e.tags?.some(t=>t.includes(q))
-  );
-  document.getElementById("lib-sub").textContent = `${expressions.length} expressions collected`;
+  let filtered = expressions.filter(e => {
+    if (libraryFilter !== "all" && getCategory(e) !== libraryFilter) return false;
+    if (q && !(e.expression.toLowerCase().includes(q) || e.meaning.includes(q) || e.tags?.some(t=>t.includes(q)))) return false;
+    return true;
+  });
+  const label = {all:"全部",new:"未学习",learning:"学习中",graduated:"已毕业"}[libraryFilter];
+  document.getElementById("lib-sub").textContent = `${label} · ${filtered.length}/${expressions.length}`;
   const list = document.getElementById("library-list");
-  if (!filtered.length) { list.innerHTML = `<div class="empty-list">还没有表达，去添加一个吧！</div>`; return; }
-  list.innerHTML = filtered.map(e => `
+  if (!filtered.length) {
+    const tip = libraryFilter==="new" ? "还没有从未学习的表达" : libraryFilter==="learning" ? "没有正在学习的表达" : libraryFilter==="graduated" ? "还没有已毕业的表达，输出3次即可毕业 🎓" : "还没有表达，去添加一个吧！";
+    list.innerHTML = `<div class="empty-list">${tip}</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(e => {
+    const cat = getCategory(e);
+    const catLabel = cat==="new" ? "未学习" : cat==="learning" ? "学习中" : "🎓已毕业";
+    const catTag = cat==="new" ? '<span class="tag-chip" style="background:#F0E6D4;color:#8A7A5C">未学习</span>' : cat==="learning" ? '<span class="tag-chip" style="background:#E8EADF;color:#6B7056">学习中</span>' : '';
+    return `
     <div class="card" id="card-${e.id}">
       <div class="card-header">
         <span class="card-expr" id="card-expr-${e.id}">${e.expression}</span>
@@ -505,16 +572,30 @@ function renderLibrary() {
       <div class="card-meaning" id="card-meaning-${e.id}">${e.meaning}</div>
       ${e.example ? `<div class="card-example" id="card-example-${e.id}">${e.example}</div>` : `<div class="card-example" id="card-example-${e.id}" style="display:none"></div>`}
       <div class="card-footer" id="card-footer-${e.id}">
+        ${catTag}
         ${(e.tags||[]).map(t=>`<span class="tag-chip">${t}</span>`).join("")}
         <span class="card-meta">${daysAgo(e.createdAt)===0?"今天":daysAgo(e.createdAt)+"天前"} · Lv.${e.level??0}${(e.outputCount||0)>=3 ? ' · 🎓已毕业' : ' · 输出'+(e.outputCount||0)+'/3'}</span>
       </div>
     </div>
-  `).join("");
+  `}).join("");
 }
 
 function deleteExpr(id) {
   expressions = expressions.filter(e=>e.id!==id);
   saveData(); renderAll(); renderLibrary();
+}
+
+function setLibFilter(f) {
+  libraryFilter = f;
+  renderAll();
+  renderLibrary();
+}
+
+function toggleGraduatedReview() {
+  setGraduatedInReview(!getGraduatedInReview());
+  renderAll();
+  renderLibrary();
+  if (currentTab === "review") initReview();
 }
 
 // ====== 编辑表达 ======
